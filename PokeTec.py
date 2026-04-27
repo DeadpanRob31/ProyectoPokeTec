@@ -134,6 +134,7 @@ indice_avatars=0
 capturas_jugador = 0
 capturas_bot = 0
 turno_jugador = True
+x=1
 
 #Cargar imagenes
 CarpetaAssets = path.dirname(path.abspath(__file__))
