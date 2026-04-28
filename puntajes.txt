@@ -1,5 +1,7 @@
-Abi: 300 puntos
-Abi: 300 puntos
-Abi: 300 puntos
-Abi: 400 puntos
-Abi: 300 puntos
+
+A|3|entrenador_jugador.png
+Abi|3|entrenador_jugador.png
+Abi|3|entrenador_jugador.png
+Abi|3|entrenador_jugador.png
+A|3|entrenador_jugador.png
+A|3|entrenador_jugador.png

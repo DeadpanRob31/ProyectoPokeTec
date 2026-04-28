@@ -136,6 +136,7 @@ avatar=[
     "Personaje1.png","Personaje2.png","Personaje3.png","Personaje4.png","Personaje5.png"
 ]
 equipo_Jugador=[]
+pokemons_ya_elegidos=[]
 equipo_bot=[]
 nombreBot=""
 avatarBot=""
@@ -226,13 +227,28 @@ def preparar_interfaz_pelea():
 def ejecutar_accion(accion_jugador):
     global pokemon_actual_jugador, pokemon_actual_bot, p_aliado,p_rival,lbl_prueba,capturas_jugador, capturas_bot
     
-    danio = max(10, pokemon_actual_jugador["ataque"] - pokemon_actual_bot["defensa"])
-    pokemon_actual_bot["vida"] -= danio
+    herida_al_bot = pokemon_actual_jugador["ataque"] - pokemon_actual_bot["defensa"]
+    
+    pokemon_actual_bot["vida"] -= herida_al_bot
+
     lbl_prueba.config(text=f"{pokemon_actual_jugador['nombre']} usó {accion_jugador.upper()}!")
+    
     actualizar_barras_vida()
+
+    if pokemon_actual_jugador["vida"] <= 0:
+        # Verificamos si te quedan más Pokémon con vida
+        vivos = [p for p in equipo_Jugador if p["vida"] > 0]
+        
+        if len(vivos) == 0:
+            # Si no quedan más, el bot gana definitivamente
+            terminar_juego("DERROTA")
+        else:
+            # Si quedan, pedir relevo (lo que ya teníamos)
+            pedir_nuevo_pokemon()
 
     # 2. VERIFICAR SI MURIÓ EL BOT
     if pokemon_actual_bot["vida"] <= 0:
+        pokemon_actual_bot["vida"]=pokemon_actual_bot["vida_max"]
         capturas_jugador += 1
         actualizar_contadores()
         if capturas_jugador == 3:
@@ -244,8 +260,8 @@ def ejecutar_accion(accion_jugador):
     
 
     # 3. ATAQUE BOT (Turno automático)
-    danio_bot = max(10, pokemon_actual_bot["ataque"] - pokemon_actual_jugador["defensa"])
-    pokemon_actual_jugador["vida"] -= danio_bot
+    herida_al_jugador = pokemon_actual_bot["ataque"] - pokemon_actual_jugador["defensa"]
+    pokemon_actual_jugador["vida"] -= herida_al_jugador
     actualizar_barras_vida()
 
     # 4. VERIFICAR SI MURIÓ EL JUGADOR
@@ -264,38 +280,44 @@ def verificar_final():
         messagebox.showerror("DERROTA", "El bot te ha ganado y se llevó a tus Pokémon...")
     accion_bot = random.choice(["atacar", "defender"])
     if accion_bot == "atacar":
-        danio_bot = max(5, p_rival["ataque"] - p_aliado["defensa"])
-        p_aliado["vida"] -= danio_bot
+        golpe_bot = max(5, p_rival["ataque"] - p_aliado["defensa"])
+        p_aliado["vida"] -= golpe_bot
     
 def crear_barras_vida():
-    global C_Seleccion, barra_jugador, barra_bot
+    global C_Seleccion, barra_jugador, barra_bot,txt_vida_jugador, txt_vida_bot
     
-    C_Seleccion.create_rectangle(150, 450, 450, 470, fill="#4d4d4d", outline="black")
-    barra_jugador = C_Seleccion.create_rectangle(150, 450, 450, 470, fill="#2ecc71", outline="")
+    C_Seleccion.create_rectangle(945, 490, 1245, 510, fill="#4d4d4d", outline="black", tags="interfaz_vida")
+    barra_jugador = C_Seleccion.create_rectangle(945, 490, 1245, 510, fill="#2ecc71", outline="", tags="interfaz_vida")
+    txt_vida_jugador = C_Seleccion.create_text(1250, 515, text="100/100", font=("Pokemon Emerald", 20,"bold"), fill="black", tags="interfaz_vida")
 
-    C_Seleccion.create_rectangle(750, 150, 1050, 170, fill="#4d4d4d", outline="black")
-    barra_bot = C_Seleccion.create_rectangle(750, 150, 1050, 170, fill="#2ecc71", outline="")
+    C_Seleccion.create_rectangle(520, 170, 820, 190, fill="#4d4d4d", outline="black", tags="interfaz_vida")
+    barra_bot = C_Seleccion.create_rectangle(520, 170, 820, 190, fill="#2ecc71", outline="", tags="interfaz_vida")
+    txt_vida_bot = C_Seleccion.create_text(670, 205, text="100/100", font=("Pokemon Emerald", 25), fill="black", tags="interfaz_vida")
 
+    C_Seleccion.tag_raise("interfaz_vida")
 def actualizar_barras_vida():
-    global C_Seleccion, pokemon_actual_jugador, pokemon_actual_bot, barra_jugador, barra_bot
+    global C_Seleccion, pokemon_actual_jugador, pokemon_actual_bot, barra_jugador, barra_bot,txt_vida_jugador, txt_vida_bot
     
-    # 1. Calcular el ancho proporcional (Vida Actual / Vida Máxima * Ancho Total de 300px)
-    ancho_jugador = (pokemon_actual_jugador['vida'] / pokemon_actual_jugador['vida_max']) * 300
-    ancho_bot = (pokemon_actual_bot['vida'] / pokemon_actual_bot['vida_max']) * 300
+    ancho_maximo = 300
+    
+    ancho_jugador = (pokemon_actual_jugador['vida'] / pokemon_actual_jugador['vida_max']) * ancho_maximo
+    ancho_bot = (pokemon_actual_bot['vida'] / pokemon_actual_bot['vida_max']) * ancho_maximo
 
-    # 2. Aplicar las nuevas coordenadas al rectángulo verde
-    # Sintaxis: .coords(objeto, x1, y1, x2, y2)
-    # Solo cambiamos el x2 (el borde derecho)
-    
-    # Barra Jugador
-    C_Seleccion.coords(barra_jugador, 150, 450, 150 + ancho_jugador, 470)
+    C_Seleccion.coords(barra_jugador, 1020, 480, 1020 + ancho_jugador, 500)
+    C_Seleccion.itemconfig(txt_vida_jugador, 
+                          text=f"{int(pokemon_actual_jugador['vida'])}/{pokemon_actual_jugador['vida_max']}")
     
     # Barra Bot
-    C_Seleccion.coords(barra_bot, 750, 150, 750 + ancho_bot, 170)
-
+    C_Seleccion.coords(barra_bot, 520, 170, 520 + ancho_bot, 190)
+    C_Seleccion.itemconfig(txt_vida_bot, 
+                          text=f"{int(pokemon_actual_bot['vida'])}/{pokemon_actual_bot['vida_max']}")
+    C_Seleccion.tag_raise("interfaz_vida")
     # 3. Opcional: Cambiar a rojo si tiene poca vida
     if pokemon_actual_jugador['vida'] < (pokemon_actual_jugador['vida_max'] * 0.3):
-        C_Seleccion.itemconfig(barra_jugador, fill="#e74c3c") # Rojo
+        C_Seleccion.itemconfig(barra_jugador, fill="#e74c3c")
+    else:
+        C_Seleccion.itemconfig(barra_jugador, fill="#2ecc71")
+    C_Seleccion.tag_raise("interfaz_vida")
 
 def elegir_inicial(indice_equipo): 
     global pokemon_actual_jugador, pokemon_actual_bot, equipo_Jugador, equipo_bot, C_Seleccion, lbl_prueba, nombreBot,lbl_nombrePokemonBot,lbl_nombrePokemon,lbl_prueba1
@@ -329,23 +351,23 @@ def elegir_inicial(indice_equipo):
 
 
 def terminar_juego(resultado):
-    global nombre, capturas_jugador, timer_id
+    global nombre, capturas_jugador, timer_id,capturas_bot,nombreBot, VentanadeBatalla
     
-    # Detenemos el reloj para que no siga corriendo
     if timer_id:
         VentanadeBatalla.after_cancel(timer_id)
-        
-    puntos = capturas_jugador * 100 # Ejemplo de puntaje
     
     if resultado == "VICTORIA":
-        messagebox.showinfo("¡MAESTRO POKÉMON!", f"¡Felicidades {nombre}! Has ganado.\nPuntos: {puntos}")
-        guardar_puntaje(nombre, puntos)
+        puntos = capturas_jugador
+        messagebox.showinfo("¡MAESTRO POKÉMON!", f"¡Felicidades {nombre}!Has capturado .\n: {puntos} Pokemons!")
+        guardar_puntaje(nombre, puntos,"entrenador_jugador.png")
     else:
-        messagebox.showerror("DERROTA", f"El bot te ha vencido...\nPuntos: {puntos}")
-        guardar_puntaje(f"{nombre} (Derrota)", puntos)
+        puntos_bot = capturas_bot
+        messagebox.showerror("DERROTA", f"El bot te ha vencido,\n ha capturado: {puntos_bot} Pokemons!")
+        guardar_puntaje(nombre, puntos,"entrenador_bot.png")
         
     VentanadeBatalla.destroy()
-    ventana_posiciones() # Llama a la ventana del ranking
+    cierreTotaldeVentanas()
+    ventana_ranking() 
 def pedir_nuevo_pokemon():
     global C_Seleccion, lbl_prueba, lbl_prueba1
     
@@ -368,10 +390,9 @@ def pedir_nuevo_pokemon():
                                  font=("Pokemon Emerald", 30), height=1, width=7)
             
             C_Seleccion.create_window(posX, posY, window=btn_relevo, tags="botones_seleccion")
-def guardar_puntaje(nombre_usuario, puntos):
-    # 'a' significa 'append' (añadir al final)
+def guardar_puntaje(nombre_usuario, capturas,avatar_path):
     with open("puntajes.txt", "a") as archivo:
-        archivo.write(f"{nombre_usuario}: {puntos} puntos\n")
+        archivo.write(f"{nombre_usuario}|{capturas}|{avatar_path}\n")
 
 def resetear_timer():
     global tiempo_restante, timer_id
@@ -408,7 +429,7 @@ def proxima_ronda_bot():
 def actualizar_contadores():
     global capturas_jugador, capturas_bot, lbl_contadores
     # Actualiza el Label que creamos en la VentanaBatalla
-    lbl_contadores.config(text=f"Capturas: {capturas_jugador} | Rival: {capturas_bot}")
+    lbl_contadores.config(text=f"Capturas: {capturas_jugador} - Rival: {capturas_bot}")
 
 #VentanaBatalla
 def VentanaBatalla():
@@ -424,7 +445,7 @@ def VentanaBatalla():
     C_Seleccion = Canvas(VentanadeBatalla, width=1470, height=790, highlightthickness=0)
     C_Seleccion.place(x=0, y=0)
 
-    crear_barras_vida()
+    
     #-----------FONDO----------------------
     C_Seleccion.fondo = cargar_img('FondoVerde.png')
     C_Seleccion.create_image(0, 0, anchor=NW, image=C_Seleccion.fondo)
@@ -435,7 +456,7 @@ def VentanaBatalla():
     C_Seleccion.zacate2 = cargar_img('Zacate2.png')
     C_Seleccion.create_image(1080, 300, anchor=N, image=C_Seleccion.zacate2)
     #-----------FONDO----------------------
-
+    
 
     #------------JUGADOR-------------------
 
@@ -462,7 +483,7 @@ def VentanaBatalla():
     C_Seleccion.textoPeque1 = cargar_img('TextoPeque1.png')
     C_Seleccion.create_image(1100, 410, anchor=N, image=C_Seleccion.textoPeque1)
     lbl_nombrePokemon=Label(VentanadeBatalla, text=f"{nombre}", font=("Pokemon Emerald", 35), fg="#2b2b2b", bg="#f5f5f5")
-    C_Seleccion.create_window(1020, 480, window=lbl_nombrePokemon)
+    C_Seleccion.create_window(1000, 460, window=lbl_nombrePokemon)
 
     C_Seleccion.textoPeque2 = cargar_img('TextoPeque2.png')
     C_Seleccion.create_image(600, 100, anchor=N, image=C_Seleccion.textoPeque2)
@@ -475,22 +496,22 @@ def VentanaBatalla():
     lbl_prueba1=Label(VentanadeBatalla, text=f"Elige que pokemon usar!", font=("Pokemon Emerald", 35), fg="#2b2b2b", bg="#f5f5f5",border=1)
     C_Seleccion.create_window(500, 660, window=lbl_prueba1)
     #------------BURBUJAS DE TEXTO------------
-
+    crear_barras_vida()
     # Contador de capturas (Punto 4)
-    lbl_contadores = Label(VentanadeBatalla, text=f"Capturas: {capturas_jugador} | Rival: {capturas_bot}", 
-                           font=("Pokemon Emerald", 20), bg="white")
-    C_Seleccion.create_window(735, 50, window=lbl_contadores)
+    lbl_contadores = Label(VentanadeBatalla, text=f"Capturas: {capturas_jugador}  Rival: {capturas_bot}", 
+                           font=("Pokemon Emerald", 25),fg="black", bg="white")
+    C_Seleccion.create_window(235, 50, window=lbl_contadores)
 
     # Timer (Punto 6)
-    lbl_timer = Label(VentanadeBatalla, text="TIEMPO: 60s", font=("Pokemon Emerald", 30), fg="red", bg="white")
-    C_Seleccion.create_window(735, 100, window=lbl_timer)
+    lbl_timer = Label(VentanadeBatalla, text="TIEMPO: 60s", font=("Pokemon Emerald", 25), fg="black", bg="white")
+    C_Seleccion.create_window(1275, 50, window=lbl_timer)
     iniciar_timer()
     #------------BOTONES----------------------
     coords_botones=[(1100,605),(1100,680),(1300,605)]
     for i in range(3):
         posX,posY=coords_botones[i]
         btn1 = Button(VentanadeBatalla, text=equipo_Jugador[i]["nombre"], 
-                     command=lambda idx=i: elegir_inicial(idx), font=("Pokemon Emerald", 30), height=1 ,width=7)
+                     command=lambda idx=i: elegir_inicial(idx), font=("Pokemon Emerald", 30), height=1 ,width=10)
         
         C_Seleccion.create_window(posX,posY,window=btn1,tags="botones_seleccion",)
     #------------BOTONES----------------------
@@ -543,23 +564,28 @@ def cambiar_pokemon(direccion):
         
     actualizar_interfaz()
 
-def elegir_para_equipo():
-    global indice_actual, equipo_Jugador, C_Seleccion
+def elegir_pokemons():
+    global indice_actual, equipo_Jugador, C_Seleccion,pokemons_ya_elegidos
+    pokemon_seleccionado=pokemons[indice_actual]
+    nombre_pokemon=pokemon_seleccionado["nombre"]
+    
+    if nombre_pokemon in pokemons_ya_elegidos:
+        messagebox.showwarning("Ups!","Ese pokemon ya lo elegiste!")
+        return
     if len(equipo_Jugador) < 3:
-        pokemon_seleccionado = pokemons[indice_actual]
         equipo_Jugador.append(pokemon_seleccionado)
-        
+        pokemons_ya_elegidos.append(nombre_pokemon)
+
+        #Minis de los Pokemons elegidos
         mini_img = cargar_img(pokemon_seleccionado['img_mini'])
-        
         n = len(equipo_Jugador)
         posX = 550 + (n * 100) 
         
         setattr(C_Seleccion, f'mini_p{n}', mini_img) 
         C_Seleccion.create_image(posX, 490, image=getattr(C_Seleccion, f'mini_p{n}'))
             
-        print(f"Añadido {pokemon_seleccionado['nombre']} por encima del recuadro.")
     else:
-        messagebox.showwarning("Equipo Lleno", "Ya tienes 3 Pokémon.")
+        messagebox.showwarning("Ups, equipo lleno", "Ya tienes 3 Pokémon!")
 
 #VentanaEleccion
 def ventana_Pokemons():
@@ -621,7 +647,7 @@ def ventana_Pokemons():
     btn_Slider_I_Pokemons=Button(C_Seleccion, text=">", command=lambda: cambiar_pokemon(1), font=("Pokemon Emerald", 15))
     C_Seleccion.create_window(1360, 390, window=btn_Slider_I_Pokemons)
 
-    btn_elegir = Button(C_Seleccion, text="ELEGIR POKÉMON", font=("Pokemon Emerald", 20,"bold"), command=elegir_para_equipo, bg="green", fg="white")
+    btn_elegir = Button(C_Seleccion, text="ELEGIR POKÉMON", font=("Pokemon Emerald", 20,"bold"), command=elegir_pokemons, bg="green", fg="white")
     C_Seleccion.create_window(1155, 625, window=btn_elegir)
 
     # --- ATRIBUTOS (Debajo del nombre del Pokemon) ---
@@ -650,8 +676,6 @@ def ventana_Pokemons():
     C_Seleccion.create_window(755, 600, window=btn_listo)
     
     #Minis
-    cuadro_img_minis = cargar_img('EspacioMinis.png')
-
     C_Seleccion.fondo_mini1 = cargar_img('EspacioMinis.png')
     C_Seleccion.create_image(650, 490, image=C_Seleccion.fondo_mini1)
 
@@ -663,49 +687,57 @@ def ventana_Pokemons():
     
 
     # Inicializar Música y Datos
-    global reproductor
-    reproductor = vlc.MediaPlayer(cargarMP3("SeleccionPj.mp3"))
-    reproductor.audio_set_volume(60) 
-    reproductor.play()
-
+    reproducir_cancion(cargarMP3("SeleccionPj.mp3"))
     actualizar_avatar()
     actualizar_interfaz()
 
-def preparar_batalla():
-    if len(equipo_Jugador) < 3:
-        messagebox.showerror("Error", "¡Te faltan pokémons en el equipo!")
-        print("¡Te faltan pokémons en el equipo!")
-        return
-    
-    generar_rival() 
-    VentanaBatalla() 
 
 def confirmar_seleccion():
-    global nombre
-    detener_musica()
+    global nombre,equipo_Jugador
+    
     nombre = ent_nombre.get()
     if not nombre:
         messagebox.showerror("Error", "¡Debes ponerte un nombre!")
         return
+    if len(equipo_Jugador)<3:
+        messagebox.showerror("Ups","Equipo incompleto.")
+        return
+    detener_musica()
     reproducir_effecto(cargarMP3("ListoSoundEffect.mp3"))
     generar_rival()
     VentanaBatalla()
 
-def ventana_posiciones():
-    top_puntos = Toplevel(ventana)
-    top_puntos.title("Ranking de Entrenadores")
-    top_puntos.minsize(400, 500)
+def ventana_ranking():
+    detener_musica()
+    top_puntajes = Toplevel(ventana)
+    top_puntajes.title("Ranking de Entrenadores")
+    top_puntajes.minsize(400, 500)
     
-    Label(top_puntos, text="TABLA DE POSICIONES", font=("Pokemon Emerald", 25)).pack(pady=10)
+    Label(top_puntajes, text="TABLA DE POSICIONES", font=("Pokemon Emerald", 25)).pack(pady=10)
     
     if path.exists("puntajes.txt"):
         with open("puntajes.txt", "r") as f:
             lineas = f.readlines()
-            # Mostramos las últimas 10 puntuaciones
-            for linea in lineas[-10:]:
-                Label(top_puntos, text=linea.strip(), font=("Pokemon Emerald", 18)).pack()
+            lineas.sort(key=lambda x: int(x.split('|')[1]), reverse=True)
+
+            for linea in lineas:
+                datos = linea.strip().split("|")
+                if len(datos) == 3:
+                    n, p, img_path = datos
+                    
+                    fila = Frame(top_puntajes)
+                    fila.pack(pady=10, fill=X, padx=20)
+                    
+                    img = cargar_img(img_path) 
+                    lbl_img = Label(fila, image=img)
+                    lbl_img.image = img 
+                    lbl_img.pack(side=LEFT)
+                    
+                    Label(fila, text=f" {n.upper()} ", font=("Pokemon Emerald", 18, "bold")).pack(side=LEFT)
+                    Label(fila, text=f"- {p} Capturas", font=("Pokemon Emerald", 18)).pack(side=LEFT)
     else:
-        Label(top_puntos, text="Aún no hay récords.", font=("Pokemon Emerald", 15)).pack()
+        Label(top_puntajes, text="¡Aún no hay records registrados!", font=("Pokemon Emerald", 15)).pack(pady=20)
+    reproducir_cancion(cargarMP3("victorytheme.mp3"))
 C_principal = Canvas(ventana, width=1470, height=790, background="green" ,highlightthickness=0)
 C_principal.place(x=0, y=0)
 
